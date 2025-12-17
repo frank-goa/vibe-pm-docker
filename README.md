@@ -214,6 +214,8 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/vibepm" npx prisma s
 
 Open [http://localhost:5555](http://localhost:5555) in your browser.
 
+To stop Prisma Studio, press `Ctrl+C` in the terminal where it's running.
+
 ### Command Line Access
 
 ```bash
