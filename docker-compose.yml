@@ -25,22 +25,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/vibepm?schema=public
+      MIGRATE_ON_STARTUP: "true"
     ports:
       - "3000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # Run migrations on startup
-  migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: vibe-pm-migrate
-    user: root
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/vibepm?schema=public
-    command: npx prisma db push
     depends_on:
       db:
         condition: service_healthy
