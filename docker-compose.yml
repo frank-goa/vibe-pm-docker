@@ -37,9 +37,10 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: vibe-pm-migrate
+    user: root
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/vibepm?schema=public
-    command: npx prisma migrate deploy
+    command: npx prisma db push
     depends_on:
       db:
         condition: service_healthy

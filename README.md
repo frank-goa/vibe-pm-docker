@@ -48,28 +48,55 @@ A clean, dark-mode project management app built for vibe coders. Features a Kanb
 
 The easiest way to run the app with PostgreSQL.
 
+#### Prerequisites
+
+- Docker Desktop installed and running
+
+#### Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/frank-goa/vibe-pm-docker.git
 cd vibe-pm-docker
 
-# Start with Docker Compose
-docker-compose up -d
-
-# Run database migrations
-docker-compose run --rm migrate
+# Build and start all services
+docker compose up -d
 ```
+
+This starts three services:
+- **db**: PostgreSQL 16 database on port 5432
+- **app**: Next.js application on port 3000
+- **migrate**: Runs Prisma db push to sync the schema (exits after completion)
 
 The app will be available at [http://localhost:3000](http://localhost:3000).
 
-To stop:
+#### Managing the Application
+
 ```bash
-docker-compose down
+# Check status of all services
+docker compose ps
+
+# View application logs
+docker compose logs -f app
+
+# View database logs
+docker compose logs -f db
+
+# Restart the application
+docker compose restart app
+
+# Stop all services
+docker compose down
+
+# Stop and remove all data (reset database)
+docker compose down -v
 ```
 
-To stop and remove data:
+#### Rebuild After Code Changes
+
 ```bash
-docker-compose down -v
+# Rebuild and restart
+docker compose up -d --build
 ```
 
 ### Option 2: Local Development
@@ -174,23 +201,49 @@ prisma/
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/vibepm` |
 
-## Docker Commands
+## Database Management
+
+### Prisma Studio (Web UI)
+
+Prisma Studio provides a visual interface to browse and edit your database.
 
 ```bash
-# Build and start containers
-docker-compose up -d --build
-
-# View logs
-docker-compose logs -f
-
-# Stop containers
-docker-compose down
-
-# Reset database (removes all data)
-docker-compose down -v
-docker-compose up -d
-docker-compose run --rm migrate
+# Run Prisma Studio (from project directory)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/vibepm" npx prisma studio
 ```
+
+Open [http://localhost:5555](http://localhost:5555) in your browser.
+
+### Command Line Access
+
+```bash
+# List all tables
+docker exec vibe-pm-db psql -U postgres -d vibepm -c "\dt"
+
+# View all tasks
+docker exec vibe-pm-db psql -U postgres -d vibepm -c 'SELECT * FROM "Task";'
+
+# View all labels
+docker exec vibe-pm-db psql -U postgres -d vibepm -c 'SELECT * FROM "Label";'
+
+# View all todos
+docker exec vibe-pm-db psql -U postgres -d vibepm -c 'SELECT * FROM "Todo";'
+
+# Interactive psql session
+docker exec -it vibe-pm-db psql -U postgres -d vibepm
+```
+
+### Database Connection Details
+
+If using a GUI client (TablePlus, DBeaver, pgAdmin):
+
+| Setting | Value |
+|---------|-------|
+| Host | localhost |
+| Port | 5432 |
+| Database | vibepm |
+| Username | postgres |
+| Password | postgres |
 
 ## Default Labels
 
