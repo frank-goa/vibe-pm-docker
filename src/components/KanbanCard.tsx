@@ -1,16 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { KanbanTask, Priority, Label, LABEL_COLORS } from '@/types';
+import { KanbanTask, Priority, Label, LABEL_COLORS, Subtask } from '@/types';
 
 interface KanbanCardProps {
   task: KanbanTask;
   labels: Label[];
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
+  onRestore?: (id: string) => void;
   onEdit: (id: string, updates: Partial<Omit<KanbanTask, 'id' | 'createdAt' | 'columnId'>>) => void;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   isArchived?: boolean;
+  isSelected?: boolean;
+  onSelectToggle?: (id: string) => void;
+  selectionMode?: boolean;
 }
 
 const priorityColors: Record<Priority, string> = {
@@ -25,12 +29,38 @@ const priorityLabels: Record<Priority, string> = {
   high: 'High',
 };
 
-function isOverdue(dueDate?: string): boolean {
-  if (!dueDate) return false;
+type DueStatus = 'overdue' | 'today' | 'soon' | 'normal';
+
+function getDueStatus(dueDate?: string): DueStatus {
+  if (!dueDate) return 'normal';
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return new Date(dueDate) < today;
+
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'overdue';
+  if (diffDays === 0) return 'today';
+  if (diffDays <= 3) return 'soon';
+  return 'normal';
 }
+
+const dueStatusStyles: Record<DueStatus, string> = {
+  overdue: 'text-red-400 bg-red-500/10 border-red-500/20',
+  today: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  soon: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+  normal: 'text-zinc-500 bg-transparent border-transparent',
+};
+
+const dueStatusLabels: Record<DueStatus, string> = {
+  overdue: 'Overdue',
+  today: 'Due Today',
+  soon: 'Due Soon',
+  normal: '',
+};
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -48,16 +78,33 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragStart, isArchived }: KanbanCardProps) {
+export function KanbanCard({
+  task,
+  labels,
+  onDelete,
+  onArchive,
+  onRestore,
+  onEdit,
+  onDragStart,
+  isArchived,
+  isSelected,
+  onSelectToggle,
+  selectionMode,
+}: KanbanCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.description || '');
   const [editPriority, setEditPriority] = useState<Priority>(task.priority);
   const [editLabels, setEditLabels] = useState<string[]>(task.labels || []);
   const [editDueDate, setEditDueDate] = useState(task.dueDate || '');
+  const [editSubtasks, setEditSubtasks] = useState<Subtask[]>(task.subtasks || []);
+  const [newSubtask, setNewSubtask] = useState('');
+  const [showSubtasks, setShowSubtasks] = useState(false);
 
-  const taskLabels = labels.filter(l => task.labels?.includes(l.id));
-  const overdue = isOverdue(task.dueDate);
+  const taskLabels = labels.filter((l) => task.labels?.includes(l.id));
+  const dueStatus = getDueStatus(task.dueDate);
+  const completedSubtasks = task.subtasks?.filter((s) => s.completed).length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
 
   const handleSave = () => {
     if (editTitle.trim()) {
@@ -67,6 +114,7 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
         description: editDesc.trim() || undefined,
         labels: editLabels,
         dueDate: editDueDate || undefined,
+        subtasks: editSubtasks,
       });
       setIsEditing(false);
     }
@@ -79,20 +127,51 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
     }
     if (e.key === 'Escape') {
       setIsEditing(false);
-      setEditTitle(task.title);
-      setEditDesc(task.description || '');
-      setEditPriority(task.priority);
-      setEditLabels(task.labels || []);
-      setEditDueDate(task.dueDate || '');
+      resetEdit();
     }
   };
 
+  const resetEdit = () => {
+    setEditTitle(task.title);
+    setEditDesc(task.description || '');
+    setEditPriority(task.priority);
+    setEditLabels(task.labels || []);
+    setEditDueDate(task.dueDate || '');
+    setEditSubtasks(task.subtasks || []);
+  };
+
   const toggleLabel = (labelId: string) => {
-    setEditLabels(prev =>
-      prev.includes(labelId)
-        ? prev.filter(id => id !== labelId)
-        : [...prev, labelId]
+    setEditLabels((prev) =>
+      prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
     );
+  };
+
+  const addSubtask = () => {
+    if (newSubtask.trim()) {
+      setEditSubtasks([
+        ...editSubtasks,
+        { id: `new-${Date.now()}`, text: newSubtask.trim(), completed: false },
+      ]);
+      setNewSubtask('');
+    }
+  };
+
+  const toggleSubtask = (index: number) => {
+    const updated = [...editSubtasks];
+    updated[index] = { ...updated[index], completed: !updated[index].completed };
+    setEditSubtasks(updated);
+  };
+
+  const removeSubtask = (index: number) => {
+    setEditSubtasks(editSubtasks.filter((_, i) => i !== index));
+  };
+
+  // Quick toggle subtask without entering edit mode
+  const quickToggleSubtask = (subtaskId: string) => {
+    const updatedSubtasks = task.subtasks.map((s) =>
+      s.id === subtaskId ? { ...s, completed: !s.completed } : s
+    );
+    onEdit(task.id, { subtasks: updatedSubtasks });
   };
 
   if (isEditing) {
@@ -174,6 +253,58 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
           )}
         </div>
 
+        {/* Subtasks */}
+        <div className="mb-2">
+          <span className="text-xs text-zinc-500 block mb-1">Subtasks</span>
+          <div className="space-y-1 mb-2">
+            {editSubtasks.map((subtask, index) => (
+              <div key={subtask.id} className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleSubtask(index)}
+                  className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                    subtask.completed
+                      ? 'bg-zinc-600 border-zinc-600'
+                      : 'border-zinc-600 hover:border-zinc-500'
+                  }`}
+                >
+                  {subtask.completed && (
+                    <svg className="w-2.5 h-2.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+                <span className={`flex-1 text-xs ${subtask.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+                  {subtask.text}
+                </span>
+                <button
+                  onClick={() => removeSubtask(index)}
+                  className="text-zinc-600 hover:text-zinc-400"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
+              placeholder="Add subtask..."
+              className="flex-1 bg-zinc-900 border border-zinc-600 rounded px-2 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+            />
+            <button
+              onClick={addSubtask}
+              className="text-xs px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-zinc-300"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <button
             onClick={handleSave}
@@ -184,11 +315,7 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
           <button
             onClick={() => {
               setIsEditing(false);
-              setEditTitle(task.title);
-              setEditDesc(task.description || '');
-              setEditPriority(task.priority);
-              setEditLabels(task.labels || []);
-              setEditDueDate(task.dueDate || '');
+              resetEdit();
             }}
             className="text-xs px-2 py-1 text-zinc-400 hover:text-zinc-200 transition-colors"
           >
@@ -203,39 +330,101 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
     <div
       draggable={!isArchived}
       onDragStart={(e) => onDragStart(e, task.id)}
-      className={`bg-zinc-800 border border-zinc-700 rounded hover:border-zinc-600 transition-colors group flex overflow-hidden ${
+      onClick={() => selectionMode && onSelectToggle?.(task.id)}
+      className={`bg-zinc-800 border rounded hover:border-zinc-600 transition-colors group flex overflow-hidden ${
         isArchived ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'
+      } ${isSelected ? 'border-pink-500 ring-1 ring-pink-500/30' : 'border-zinc-700'} ${
+        selectionMode ? 'cursor-pointer' : ''
       }`}
     >
       <div className={`w-1 flex-shrink-0 ${priorityColors[task.priority]}`} />
       <div className="flex-1 p-3">
         <div className="flex justify-between items-start gap-2">
+          {/* Selection checkbox */}
+          {(selectionMode || isSelected) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectToggle?.(task.id);
+              }}
+              className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors mt-0.5 ${
+                isSelected
+                  ? 'bg-pink-500 border-pink-500'
+                  : 'border-zinc-600 hover:border-zinc-500'
+              }`}
+            >
+              {isSelected && (
+                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          )}
+
           <p className="text-sm text-zinc-100 font-medium flex-1">{task.title}</p>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {!isArchived && (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditing(true);
+                }}
                 className="text-zinc-500 hover:text-zinc-300 transition-colors"
                 title="Edit"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
                 </svg>
               </button>
             )}
             {onArchive && !isArchived && (
               <button
-                onClick={() => onArchive(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive(task.id);
+                }}
                 className="text-zinc-500 hover:text-zinc-300 transition-colors"
                 title="Archive"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                  />
+                </svg>
+              </button>
+            )}
+            {onRestore && isArchived && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRestore(task.id);
+                }}
+                className="text-zinc-500 hover:text-green-400 transition-colors"
+                title="Restore"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                  />
                 </svg>
               </button>
             )}
             <button
-              onClick={() => onDelete(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
               className="text-zinc-500 hover:text-red-400 transition-colors"
               title="Delete"
             >
@@ -246,32 +435,97 @@ export function KanbanCard({ task, labels, onDelete, onArchive, onEdit, onDragSt
           </div>
         </div>
 
-        {task.description && (
-          <p className="text-xs text-zinc-400 mt-1.5 line-clamp-2">{task.description}</p>
+        {task.description && <p className="text-xs text-zinc-400 mt-1.5 line-clamp-2">{task.description}</p>}
+
+        {/* Subtasks Progress */}
+        {totalSubtasks > 0 && (
+          <div className="mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSubtasks(!showSubtasks);
+              }}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <svg
+                className={`w-3 h-3 transition-transform ${showSubtasks ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <div className="flex items-center gap-1.5">
+                <div className="w-16 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 transition-all"
+                    style={{ width: `${(completedSubtasks / totalSubtasks) * 100}%` }}
+                  />
+                </div>
+                <span>
+                  {completedSubtasks}/{totalSubtasks}
+                </span>
+              </div>
+            </button>
+            {showSubtasks && (
+              <div className="mt-2 space-y-1 pl-4">
+                {task.subtasks.map((subtask) => (
+                  <div key={subtask.id} className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        quickToggleSubtask(subtask.id);
+                      }}
+                      className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                        subtask.completed
+                          ? 'bg-green-600 border-green-600'
+                          : 'border-zinc-600 hover:border-zinc-500'
+                      }`}
+                    >
+                      {subtask.completed && (
+                        <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                    <span
+                      className={`text-xs ${subtask.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}
+                    >
+                      {subtask.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Labels */}
         {taskLabels.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
-            {taskLabels.map(label => (
-              <span
-                key={label.id}
-                className={`text-xs px-1.5 py-0.5 rounded border ${LABEL_COLORS[label.color]}`}
-              >
+            {taskLabels.map((label) => (
+              <span key={label.id} className={`text-xs px-1.5 py-0.5 rounded border ${LABEL_COLORS[label.color]}`}>
                 {label.name}
               </span>
             ))}
           </div>
         )}
 
-        {/* Due Date */}
+        {/* Due Date with enhanced status */}
         {task.dueDate && (
-          <div className={`flex items-center gap-1 mt-2 text-xs ${overdue ? 'text-red-400' : 'text-zinc-500'}`}>
+          <div
+            className={`flex items-center gap-1.5 mt-2 text-xs px-1.5 py-0.5 rounded border w-fit ${dueStatusStyles[dueStatus]}`}
+          >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             <span>{formatDate(task.dueDate)}</span>
-            {overdue && <span className="font-medium">Overdue</span>}
+            {dueStatusLabels[dueStatus] && <span className="font-medium">{dueStatusLabels[dueStatus]}</span>}
           </div>
         )}
       </div>

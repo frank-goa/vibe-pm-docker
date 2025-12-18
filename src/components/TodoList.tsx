@@ -30,6 +30,13 @@ export function TodoList({ todos, onCreateTodo, onUpdateTodo, onDeleteTodo }: To
     await onDeleteTodo(id);
   };
 
+  const handleDragStart = (e: React.DragEvent, todoId: string, todoText: string) => {
+    e.dataTransfer.setData('text/plain', todoId);
+    e.dataTransfer.setData('type', 'todo');
+    e.dataTransfer.setData('todoText', todoText);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   const sortedTodos = [...todos].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     return a.createdAt - b.createdAt;
@@ -37,9 +44,10 @@ export function TodoList({ todos, onCreateTodo, onUpdateTodo, onDeleteTodo }: To
 
   return (
     <div className="flex flex-col h-full">
-      <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
-        Quick Tasks
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">Quick Tasks</h2>
+        <span className="text-xs text-zinc-400">Drag to kanban</span>
+      </div>
 
       <div className="flex gap-2 mb-3">
         <input
@@ -60,19 +68,21 @@ export function TodoList({ todos, onCreateTodo, onUpdateTodo, onDeleteTodo }: To
 
       <div className="flex-1 overflow-y-auto space-y-1">
         {sortedTodos.length === 0 ? (
-          <p className="text-xs text-zinc-600 py-4 text-center">No tasks yet</p>
+          <p className="text-xs text-zinc-500 py-4 text-center">No tasks yet</p>
         ) : (
           sortedTodos.map((todo) => (
             <div
               key={todo.id}
-              className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-zinc-800/50 group"
+              draggable={!todo.completed}
+              onDragStart={(e) => handleDragStart(e, todo.id, todo.text)}
+              className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-zinc-800/50 group ${
+                !todo.completed ? 'cursor-grab active:cursor-grabbing' : ''
+              }`}
             >
               <button
                 onClick={() => toggleTodo(todo.id)}
                 className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                  todo.completed
-                    ? 'bg-zinc-600 border-zinc-600'
-                    : 'border-zinc-600 hover:border-zinc-500'
+                  todo.completed ? 'bg-zinc-600 border-zinc-600' : 'border-zinc-600 hover:border-zinc-500'
                 }`}
               >
                 {todo.completed && (
@@ -82,12 +92,25 @@ export function TodoList({ todos, onCreateTodo, onUpdateTodo, onDeleteTodo }: To
                 )}
               </button>
               <span
-                className={`flex-1 text-sm ${
-                  todo.completed ? 'text-zinc-500 line-through' : 'text-zinc-200'
-                }`}
+                className={`flex-1 text-sm ${todo.completed ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}
               >
                 {todo.text}
               </span>
+              {!todo.completed && (
+                <svg
+                  className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 8h16M4 16h16"
+                  />
+                </svg>
+              )}
               <button
                 onClick={() => deleteTodo(todo.id)}
                 className="text-zinc-600 hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-all"

@@ -9,6 +9,12 @@ export interface Label {
   color: LabelColor;
 }
 
+export interface Subtask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface KanbanTask {
   id: string;
   title: string;
@@ -17,6 +23,7 @@ export interface KanbanTask {
   priority: Priority;
   labels: string[]; // label ids
   dueDate?: string; // ISO date string
+  subtasks: Subtask[];
   createdAt: number;
 }
 
@@ -32,6 +39,12 @@ export interface AppState {
   todos: TodoItem[];
   notes: string;
   labels: Label[];
+}
+
+export interface TaskFilters {
+  search: string;
+  priority: Priority | 'all';
+  labels: string[];
 }
 
 // Default labels

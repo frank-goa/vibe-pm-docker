@@ -10,6 +10,9 @@ export async function GET() {
             label: true,
           },
         },
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -22,6 +25,11 @@ export async function GET() {
       priority: task.priority,
       dueDate: task.dueDate?.toISOString().split('T')[0],
       labels: task.labels.map((tl) => tl.label.id),
+      subtasks: task.subtasks.map((s) => ({
+        id: s.id,
+        text: s.text,
+        completed: s.completed,
+      })),
       createdAt: task.createdAt.getTime(),
     }));
 
@@ -35,7 +43,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, columnId, priority, dueDate, labels } = body;
+    const { title, description, columnId, priority, dueDate, labels, subtasks } = body;
 
     const task = await prisma.task.create({
       data: {
@@ -51,6 +59,14 @@ export async function POST(request: Request) {
               })),
             }
           : undefined,
+        subtasks: subtasks?.length
+          ? {
+              create: subtasks.map((s: { text: string; completed?: boolean }) => ({
+                text: s.text,
+                completed: s.completed || false,
+              })),
+            }
+          : undefined,
       },
       include: {
         labels: {
@@ -58,6 +74,7 @@ export async function POST(request: Request) {
             label: true,
           },
         },
+        subtasks: true,
       },
     });
 
@@ -69,6 +86,11 @@ export async function POST(request: Request) {
       priority: task.priority,
       dueDate: task.dueDate?.toISOString().split('T')[0],
       labels: task.labels.map((tl) => tl.label.id),
+      subtasks: task.subtasks.map((s) => ({
+        id: s.id,
+        text: s.text,
+        completed: s.completed,
+      })),
       createdAt: task.createdAt.getTime(),
     });
   } catch (error) {
@@ -80,12 +102,19 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, title, description, columnId, priority, dueDate, labels } = body;
+    const { id, title, description, columnId, priority, dueDate, labels, subtasks } = body;
 
     // Delete existing label connections
     await prisma.taskLabel.deleteMany({
       where: { taskId: id },
     });
+
+    // Delete existing subtasks and recreate (simpler than diffing)
+    if (subtasks !== undefined) {
+      await prisma.subtask.deleteMany({
+        where: { taskId: id },
+      });
+    }
 
     const task = await prisma.task.update({
       where: { id },
@@ -102,6 +131,14 @@ export async function PUT(request: Request) {
               })),
             }
           : undefined,
+        subtasks: subtasks?.length
+          ? {
+              create: subtasks.map((s: { text: string; completed?: boolean }) => ({
+                text: s.text,
+                completed: s.completed || false,
+              })),
+            }
+          : undefined,
       },
       include: {
         labels: {
@@ -109,6 +146,7 @@ export async function PUT(request: Request) {
             label: true,
           },
         },
+        subtasks: true,
       },
     });
 
@@ -120,6 +158,11 @@ export async function PUT(request: Request) {
       priority: task.priority,
       dueDate: task.dueDate?.toISOString().split('T')[0],
       labels: task.labels.map((tl) => tl.label.id),
+      subtasks: task.subtasks.map((s) => ({
+        id: s.id,
+        text: s.text,
+        completed: s.completed,
+      })),
       createdAt: task.createdAt.getTime(),
     });
   } catch (error) {

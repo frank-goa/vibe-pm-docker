@@ -15,12 +15,16 @@ A clean, dark-mode project management app built for vibe coders. Features a Kanb
 - **Drag and drop**: Move tasks between columns
 - **Priorities**: Low, Medium, High — auto-sorted with high priority at top
 - **Labels**: Tag tasks with Bug, Feature, Design, Docs, or Urgent
-- **Due dates**: Set deadlines with overdue highlighting
-- **Archive**: Completed tasks can be archived for a cleaner board
+- **Due dates**: Set deadlines with visual indicators (overdue, today, due soon)
+- **Subtasks**: Add checklists within tasks with progress tracking
+- **Archive**: Completed tasks can be archived and restored
+- **Search & Filter**: Find tasks by text, priority, or labels
+- **Bulk Actions**: Select multiple tasks (Shift+click) to move, archive, or delete
 
 ### Quick Tasks
 - Simple checkbox-based todo list
 - Perfect for small tasks that don't need full Kanban treatment
+- **Drag to Kanban**: Drag quick tasks directly into Kanban columns to convert them
 - Completed tasks sort to the bottom
 
 ### Notes
@@ -152,7 +156,9 @@ src/
 │   └── page.tsx           # Main page component
 ├── components/
 │   ├── KanbanBoard.tsx    # Board with columns and drag-drop
-│   ├── KanbanCard.tsx     # Individual task card
+│   ├── KanbanCard.tsx     # Individual task card with subtasks
+│   ├── SearchFilter.tsx   # Search and filter controls
+│   ├── BulkActionBar.tsx  # Bulk selection action bar
 │   ├── TodoList.tsx       # Quick tasks sidebar
 │   └── Notes.tsx          # Notes textarea
 ├── hooks/
@@ -173,6 +179,7 @@ prisma/
 | Table | Description |
 |-------|-------------|
 | `Task` | Kanban board tasks with title, description, priority, due date |
+| `Subtask` | Checklist items within tasks |
 | `Label` | Labels for categorizing tasks |
 | `TaskLabel` | Many-to-many relationship between tasks and labels |
 | `Todo` | Quick tasks (checkbox list) |

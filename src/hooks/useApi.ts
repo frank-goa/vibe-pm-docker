@@ -12,9 +12,15 @@ export function useTasks() {
     try {
       const res = await fetch('/api/tasks');
       const data = await res.json();
-      setTasks(data);
+      if (Array.isArray(data)) {
+        setTasks(data);
+      } else {
+        console.error('Error fetching tasks:', data.error || 'Invalid response');
+        setTasks([]);
+      }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      setTasks([]);
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { KanbanBoard } from '@/components/KanbanBoard';
 import { TodoList } from '@/components/TodoList';
 import { Notes } from '@/components/Notes';
 import { useTasks, useTodos, useNotes, useLabels, useSeed } from '@/hooks/useApi';
+import { ColumnId } from '@/types';
 
 type MobileView = 'board' | 'tasks' | 'notes';
 
@@ -16,6 +17,24 @@ export default function Home() {
   const { todos, loading: todosLoading, createTodo, updateTodo, deleteTodo } = useTodos();
   const { notes, loading: notesLoading, updateNotes } = useNotes();
   const { labels, loading: labelsLoading } = useLabels();
+
+  // Handle converting a quick task (todo) to a kanban task when dropped
+  const handleTodoDropped = async (todoId: string, columnId: ColumnId) => {
+    const todo = todos.find((t) => t.id === todoId);
+    if (!todo) return;
+
+    // Create a new kanban task from the todo
+    await createTask({
+      title: todo.text,
+      columnId,
+      priority: 'medium',
+      labels: [],
+      subtasks: [],
+    });
+
+    // Delete the original todo
+    await deleteTodo(todoId);
+  };
 
   useEffect(() => {
     if (!seeded) {
@@ -111,6 +130,7 @@ export default function Home() {
                   onCreateTask={createTask}
                   onUpdateTask={updateTask}
                   onDeleteTask={deleteTask}
+                  onTodoDropped={handleTodoDropped}
                 />
               )}
             </main>
@@ -154,6 +174,7 @@ export default function Home() {
               onCreateTask={createTask}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
+              onTodoDropped={handleTodoDropped}
             />
           )}
         </main>
