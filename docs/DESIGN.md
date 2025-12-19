@@ -85,7 +85,7 @@ Vibe is a modern project management application built with Next.js 16, featuring
 | id | UUID | Primary key |
 | title | String | Task title |
 | description | String? | Optional description |
-| columnId | String | Kanban column: 'todo', 'in-progress', 'complete', 'archive' |
+| columnId | String | Kanban column: 'todo', 'in-progress', 'complete' |
 | priority | String | 'low', 'medium', 'high' |
 | dueDate | DateTime? | Optional due date |
 | createdAt | DateTime | Creation timestamp |
@@ -120,7 +120,7 @@ Vibe is a modern project management application built with Next.js 16, featuring
 | Field | Type | Description |
 |-------|------|-------------|
 | id | UUID | Primary key |
-| content | String | Note content (markdown supported) |
+| content | String | Note content |
 | createdAt | DateTime | Creation timestamp |
 | updatedAt | DateTime | Last update timestamp |
 
@@ -142,25 +142,26 @@ App (page.tsx)
 │       │   └── Filter Panel
 │       │       ├── Priority Filters
 │       │       └── Label Filters
-│       ├── Columns (Todo, In Progress, Complete)
+│       ├── Columns (Todo, In Progress, Complete, Archive)
 │       │   ├── Column Header (title + count)
-│       │   ├── KanbanCard[]
-│       │   │   ├── Task Title
-│       │   │   ├── Priority Indicator
-│       │   │   ├── Due Date Badge
-│       │   │   ├── Label Tags
-│       │   │   ├── Subtask Progress
-│       │   │   └── Action Buttons
-│       │   └── Add Task Form
-│       ├── Archive Section
-│       │   └── Archived KanbanCard[]
-│       └── BulkActionBar (floating)
+│       │   ├── KanbanCard[] (filtered by search/filters)
+│       │   │   ├── Checkbox (for bulk selection)
+│       │   │   ├── Task title
+│       │   │   ├── Priority indicator (color-coded border)
+│       │   │   ├── Due date badge (with overdue/today indicators)
+│       │   │   ├── Label tags (color-coded)
+│       │   │   ├── Subtask list
+│       │   │   │   ├── Subtask items (checkbox + text)
+│       │   │   │   └── Add subtask input
+│       │   │   └── Action buttons (edit, archive, delete)
+│       │   └── Add task form (appears on "Add" button click)
+│       └── BulkActionBar (floating, appears when tasks selected)
 └── Sidebar (Desktop)
     ├── TodoList (Quick Tasks)
     │   ├── Input
     │   └── Draggable Todo Items
     └── Notes
-        └── Textarea
+        └── Textarea (auto-saves on change)
 ```
 
 ## API Endpoints
@@ -363,14 +364,14 @@ DATABASE_URL="postgresql://vibepm:vibepm123@localhost:5432/vibepm"
 ## Testing Strategy
 
 ### Manual Testing Checklist
-- [ ] Create, edit, delete tasks
-- [ ] Drag tasks between columns
-- [ ] Search and filter tasks
-- [ ] Bulk select and perform actions
-- [ ] Add/toggle subtasks
-- [ ] Archive and restore tasks
-- [ ] Drag quick tasks to Kanban
-- [ ] Responsive layout on mobile
+- [x] Create, edit, delete tasks
+- [x] Drag tasks between columns
+- [x] Search and filter tasks
+- [x] Bulk select and perform actions
+- [x] Add/toggle subtasks
+- [x] Archive and restore tasks
+- [x] Drag quick tasks to Kanban
+- [x] Responsive layout on mobile
 
 ### Future: Automated Testing
 - Unit tests with Jest

@@ -40,6 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Key models in `prisma/schema.prisma`:
 
 - `Task` - Kanban board cards with title, description, columnId (todo/inprogress/complete), priority, dueDate
+- `Subtask` - Checklist items within tasks with completion tracking
 - `Label` - Task categorization with name and color
 - `TaskLabel` - Many-to-many join table for Task-Label relationships
 - `Todo` - Quick task checklist items with text and completed status
@@ -62,16 +63,38 @@ Key models in `prisma/schema.prisma`:
 ├── components/
 │   ├── KanbanBoard.tsx   # Main kanban board with columns
 │   ├── KanbanCard.tsx    # Individual task cards with inline editing
+│   ├── SubtaskList.tsx   # Subtasks within cards with progress
+│   ├── SearchFilter.tsx  # Search bar and filter controls
+│   ├── BulkActionBar.tsx # Bulk action controls for selected tasks
+│   ├── ArchiveDialog.tsx # Archive/restore tasks modal
 │   ├── TodoList.tsx      # Quick tasks checklist
 │   └── Notes.tsx         # Notes textarea with auto-save
 ├── hooks/
 │   ├── useApi.ts         # Data fetching hooks (useTasks, useTodos, useNotes, useLabels)
 │   └── useLocalStorage.ts
-└── lib/
-    └── prisma.ts         # Prisma client singleton
+├── lib/
+│   └── prisma.ts         # Prisma client singleton
+└── types/
+    └── index.ts          # TypeScript types and constants
 ```
 
-### API Routes
+### TypeScript Types
+
+Key types defined in `/src/types/index.ts`:
+- `KanbanTask` - Main task interface with subtasks, labels, and metadata
+- `Subtask` - Individual checklist item within tasks
+- `TodoItem` - Quick task interface
+- `Label` - Label interface with color
+- `TaskLabel` - Join table for task-label relationships
+- Priority and column constants
+
+### Drag and Drop Pattern
+
+The app uses HTML5 native drag and drop API:
+- Tasks can be dragged between columns (todo → inprogress → complete)
+- Quick tasks can be dragged into Kanban columns to convert them
+- Drag events are handled in `KanbanBoard.tsx` with column state updates
+- Visual feedback provided during drag with opacity changes
 
 All routes use Next.js Route Handlers with standard REST patterns:
 
@@ -100,8 +123,9 @@ const { labels, loading } = useLabels();
 
 Tasks use `columnId` to determine their column:
 - `todo` - Todo column
-- `inprogress` - In Progress column
+- `in-progress` - In Progress column
 - `complete` - Complete column
+- `archive` - Archive column (hidden by default)
 
 ### Priority Levels
 
@@ -109,6 +133,29 @@ Tasks support three priority levels with color-coded left borders:
 - `high` - Red border
 - `medium` - Amber/yellow border
 - `low` - Gray border
+
+### Subtasks
+
+Tasks can contain subtasks with completion tracking. The progress bar shows completion percentage and completed subtasks sort to the bottom.
+
+### Search & Filter
+
+The search bar filters tasks by title/description text, while priority and label filters help narrow down tasks. Filters work together (AND logic).
+
+### Bulk Actions
+
+Select multiple tasks using Shift+click to perform batch operations:
+- Move multiple tasks to different columns
+- Archive completed tasks in bulk
+- Delete multiple tasks with confirmation
+
+### Archive System
+
+Completed tasks can be archived to clean up the board. Archived tasks are hidden from the main view but can be viewed and restored from the archive.
+
+### Quick Tasks to Kanban
+
+Quick tasks can be dragged directly into Kanban columns to convert them into full tasks.
 
 ### Responsive Layout
 
